@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROMPT VAULT | AI Vault 2.0</title>
+    <!-- Naya Sci-Fi Font Add Kiya -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- Background & Spotlight -->
+    <canvas id="matrix-canvas" aria-hidden="true"></canvas>
+    <div class="spotlight" id="spotlight"></div>
+
+    <!-- HUD Corners -->
+    <div class="hud hud-tl">SYS.STATUS: <span>ONLINE</span><br>NODE: 0x4A2B</div>
+    <div class="hud hud-tr">MEM: 84%<br>CPU: 98%</div>
+    <div class="hud hud-bl">AUTH: ROOT<br>ENCRYPT: AES-256</div>
+    <div class="hud hud-br">SECURE CONNECTION</div>
+
+    <!-- Boot Terminal -->
+    <div class="terminal-boot" id="terminal-boot">
+        <div class="terminal-text">
+            > INITIALIZING VAULT OS...<br>
+            > DECRYPTING PROMPT DATABASE... [OK]<br>
+            > BYPASSING SECURITY... [OK]<br>
+            > WELCOME, ATHARV.<br>
+            <span class="cursor-block"></span>
+        </div>
+    </div>
+
+    <!-- Custom Cursor -->
+    <div class="cursor-dot" id="cursor-dot" aria-hidden="true"></div>
+    <div class="cursor-outline" id="cursor-outline" aria-hidden="true"></div>
+
+    <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar" aria-label="Categories">
+            <div class="sidebar-brand">AI<span>VAULT</span>_OS</div>
+            <h2 class="sidebar-title">// ROOT_DIRECTORY</h2>
+            <ul class="category-list" id="category-list">
+                <li><button class="category-btn active" data-category="All" type="button">&gt; ALL_PROMPTS</button></li>
+            </ul>
+        </aside>
+
+        <!-- Main content -->
+        <main class="main">
+            <header class="header">
+                <div class="title-container">
+                    <!-- Title text with blinking cursor -->
+                    <h1 class="glitch" data-text="PROMPT_VAULT">PROMPT_VAULT<span class="cursor-block title-cursor"></span></h1>
+                </div>
+                <p class="subtitle">&gt; system.decrypt(prompt_database)</p>
+
+                <div class="search-wrap">
+                    <span class="search-icon" aria-hidden="true">&gt;_</span>
+                    <input
+                        type="search"
+                        id="search-input"
+                        placeholder="grep -i 'search term' ..."
+                        autocomplete="off"
+                        spellcheck="false"
+                        aria-label="Search prompts"
+                    >
+                </div>
+                <p class="result-info" id="result-info" role="status" aria-live="polite"></p>
+            </header>
+
+            <section class="grid" id="prompt-grid" aria-live="polite"></section>
+
+            <div class="status" id="status"></div>
+
+            <div class="load-more-wrap">
+                <button class="load-more" id="load-more" type="button" hidden>[ EXECUTE : LOAD_MORE ]</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal" id="modal" aria-hidden="true">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+            <div class="modal-header">
+                <div class="modal-heading">
+                    <span class="modal-category" id="modal-category"></span>
+                    <h2 class="modal-title" id="modal-title"></h2>
+                    <span class="modal-meta" id="modal-meta"></span>
+                </div>
+                <button class="modal-close" id="modal-close" type="button" aria-label="Close">[X]</button>
+            </div>
+            <div class="modal-body" id="modal-body" tabindex="0"></div>
+            <div class="modal-footer">
+                <button class="copy-btn" id="copy-btn" type="button">[ EXECUTE : COPY_DATA ]</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
