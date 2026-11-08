@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PROMPT VAULT | AI Vault 2.0</title>
-    <!-- Naya Sci-Fi Font Add Kiya -->
+    <!-- Razorpay Checkout Script (Sabse Zaroori) -->
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
@@ -48,7 +50,6 @@
         <main class="main">
             <header class="header">
                 <div class="title-container">
-                    <!-- Title text with blinking cursor -->
                     <h1 class="glitch" data-text="PROMPT_VAULT">PROMPT_VAULT<span class="cursor-block title-cursor"></span></h1>
                 </div>
                 <p class="subtitle">&gt; system.decrypt(prompt_database)</p>
@@ -67,7 +68,18 @@
                 <p class="result-info" id="result-info" role="status" aria-live="polite"></p>
             </header>
 
+            <!-- Prompt Grid -->
             <section class="grid" id="prompt-grid" aria-live="polite"></section>
+
+            <!-- PAYWALL OVERLAY (Lock System) -->
+            <div class="paywall-overlay" id="paywall-overlay">
+                <div class="paywall-box">
+                    <h2>🔒 ACCESS RESTRICTED</h2>
+                    <p>Unlock the full potential of AI with access to <strong>10,000+ Premium Prompts</strong>.</p>
+                    <button class="unlock-btn" id="buy-btn">UNLOCK NOW FOR ₹49</button>
+                    <p class="safe-text">100% Secure Payment via Razorpay</p>
+                </div>
+            </div>
 
             <div class="status" id="status"></div>
 
@@ -77,7 +89,7 @@
         </main>
     </div>
 
-    <!-- Modal -->
+    <!-- Modal (Full Prompt View) -->
     <div class="modal" id="modal" aria-hidden="true">
         <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modal-title">
             <div class="modal-header">

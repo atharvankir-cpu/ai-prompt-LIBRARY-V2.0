@@ -246,3 +246,80 @@ body.cursor-hover .cursor-outline { width: 55px; height: 55px; margin: -27.5px 0
     body.has-custom-cursor, body.has-custom-cursor * { cursor: auto !important; }
     .cursor-dot, .cursor-outline { display: none !important; }
 }
+/* --- PAYWALL STYLES --- */
+.paywall-overlay {
+    position: relative;
+    width: 100%;
+    height: 0; /* Initially hide */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+
+/* Jab lock laga ho tab grid blur ho jaye */
+.grid.locked {
+    max-height: 600px;
+    overflow: hidden;
+    position: relative;
+}
+
+.grid.locked::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; width: 100%; height: 400px;
+    background: linear-gradient(to bottom, transparent, var(--bg) 80%);
+    pointer-events: none;
+}
+
+.paywall-box {
+    background: rgba(5, 10, 5, 0.95);
+    border: 2px solid var(--green);
+    padding: 40px;
+    text-align: center;
+    border-radius: 10px;
+    box-shadow: 0 0 50px rgba(0, 255, 65, 0.2);
+    position: absolute;
+    top: -200px; /* Adjust based on grid */
+    width: 90%;
+    max-width: 500px;
+}
+
+.paywall-box h2 {
+    font-family: var(--font-heading);
+    color: var(--red);
+    font-size: 2rem;
+    margin-bottom: 15px;
+    text-shadow: 0 0 10px rgba(255, 42, 42, 0.5);
+}
+
+.paywall-box p {
+    color: var(--text);
+    margin-bottom: 25px;
+    font-size: 1.1rem;
+}
+
+.unlock-btn {
+    background: var(--green);
+    color: #000;
+    border: none;
+    padding: 18px 40px;
+    font-size: 1.2rem;
+    font-weight: 900;
+    font-family: var(--font-heading);
+    cursor: pointer;
+    border-radius: 5px;
+    box-shadow: 0 0 20px var(--green);
+    transition: 0.3s;
+}
+
+.unlock-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 40px var(--green);
+}
+
+.safe-text {
+    font-size: 0.8rem !important;
+    color: var(--muted) !important;
+    margin-top: 15px;
+}

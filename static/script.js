@@ -317,3 +317,103 @@
         loadPrompts({ reset: true });
     });
 })();
+    // --- PAYWALL LOGIC ---
+    let isUnlocked = false;
+    const paywallOverlay = document.getElementById('paywall-overlay');
+    const promptGrid = document.getElementById('prompt-grid');
+    const buyBtn = document.getElementById('buy-btn');
+
+    // Check if user already unlocked (stored in browser local storage)
+    if(localStorage.getItem('vault_unlocked') === 'true') {
+        isUnlocked = true;
+    }
+
+    function applyPaywall() {
+        if (!isUnlocked) {
+            promptGrid.classList.add('locked');
+            paywallOverlay.style.height = 'auto';
+            paywallOverlay.style.marginTop = '-150px'; // Pull up to overlap the blur
+        } else {
+            promptGrid.classList.remove('locked');
+            paywallOverlay.style.display = 'none';
+        }
+    }
+
+    // Call this after rendering prompts
+    const originalRender = renderPrompts;
+    renderPrompts = function(data) {
+        originalRender(data);
+        applyPaywall();
+    };
+
+    // --- RAZORPAY PAYMENT INTEGRATION ---
+    buyBtn.addEventListener('click', async () => {
+        try {
+            buyBtn.innerText = "PROCESSING...";
+            
+            // 1. Backend se order ID mangwao
+            const response = await fetch('/api/create-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount: 49 }) // Price ₹49
+            });
+            const orderData = await response.json();
+
+            if(orderData.error) {
+                alert("Error: " + orderData.error);
+                buyBtn.innerText = "UNLOCK NOW FOR ₹49";
+                return;
+            }
+
+            // 2. Razorpay Popup
+            const options = {
+                key: "YOUR_RAZORPAY_KEY_ID", // YAHAN APNI LIVE KEY ID DAAL
+                amount: orderData.amount,
+                currency: "INR",
+                name: "Prompt Vault 2.0",
+                description: "10,000+ Premium AI Prompts",
+                order_id: orderData.id,
+                handler: async function (response) {
+                    // 3. Payment Verify
+                    const verifyRes = await fetch('/api/verify-payment', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature
+                        })
+                    });
+                    
+                    const verifyData = await verifyRes.json();
+                    
+                    if (verifyData.status === 'success') {
+                        // Unlock the vault!
+                        localStorage.setItem('vault_unlocked', 'true');
+                        isUnlocked = true;
+                        applyPaywall();
+                        alert("Payment Successful! Vault Unlocked.");
+                    } else {
+                        alert("Payment Verification Failed. Contact Support.");
+                        buyBtn.innerText = "UNLOCK NOW FOR ₹49";
+                    }
+                },
+                theme: { color: "#00ff41" }
+            };
+            
+            const rzp = new Razorpay(options);
+            rzp.on('payment.failed', function (response){
+                alert("Payment Failed: " + response.error.description);
+                buyBtn.innerText = "UNLOCK NOW FOR ₹49";
+            });
+            rzp.open();
+
+        } catch (error) {
+            console.error(error);
+            alert("Something went wrong.");
+            buyBtn.innerText = "UNLOCK NOW FOR ₹49";
+        }
+    });
+
+    // Trigger on load
+    applyPaywall();
