@@ -7,6 +7,9 @@
   const PAGE_LIMIT = 20;
   const SEARCH_DEBOUNCE_MS = 500;
 
+  // 🚨 BHAI YAHAN APNI LIVE KEY ID DAALNA
+  const RAZORPAY_KEY = "YOUR_RAZORPAY_KEY_ID";
+
   const state = {
     page: 0,
     totalPages: 0,
@@ -20,6 +23,7 @@
 
   const promptStore = new Map();
   const $ = (id) => document.getElementById(id);
+
   const el = {
     grid: $("prompt-grid"),
     status: $("status"),
@@ -35,6 +39,8 @@
     modalClose: $("modal-close"),
     copyBtn: $("copy-btn"),
     spotlight: $("spotlight"),
+    paywall: $("paywall-overlay"),
+    buyBtn: $("buy-btn"),
   };
 
   /* =========================================================
@@ -42,11 +48,6 @@
     ========================================================= */
   const countWords = (text) =>
     text.trim() ? text.trim().split(/\s+/).length : 0;
-  function escapeHtml(str) {
-    const div = document.createElement("div");
-    div.textContent = String(str);
-    return div.innerHTML;
-  }
   function showStatus(html, isError = false) {
     el.status.className = "status" + (isError ? " error" : "");
     el.status.innerHTML = html;
@@ -55,6 +56,9 @@
     el.status.className = "status";
     el.status.textContent = "";
   }
+
+  // --- PAYWALL CHECK ---
+  let isUnlocked = localStorage.getItem("vault_unlocked") === "true";
 
   /* =========================================================
        DATA FETCHING
@@ -78,9 +82,8 @@
     state.controller = controller;
     state.loading = true;
 
-    if (reset) {
-      showStatus('<span class="loader"></span> > EXECUTING QUERY...');
-    } else {
+    if (reset) showStatus('<span class="loader"></span> > EXECUTING QUERY...');
+    else {
       el.loadMore.disabled = true;
       el.loadMore.textContent = "[ PROCESSING... ]";
     }
@@ -96,6 +99,7 @@
         signal: controller.signal,
         headers: { Accept: "application/json" },
       });
+
       let json = null;
       try {
         json = await response.json();
@@ -123,10 +127,13 @@
         showStatus(
           '<span class="big">// NO_DATA_FOUND</span>Try a different keyword.',
         );
+
+      // Apply Paywall Logic after loading prompts
+      applyPaywallLogic();
     } catch (err) {
       if (err.name === "AbortError") return;
       showStatus(
-        `<span class="big">// CONNECTION_ERROR</span>${escapeHtml(err.message)}`,
+        `<span class="big">// CONNECTION_ERROR</span>${err.message}`,
         true,
       );
     } finally {
@@ -172,7 +179,9 @@
     card.tabIndex = 0;
     card.setAttribute("role", "button");
     card.dataset.id = String(item.id);
+
     card.innerHTML = `
+            <div class="card-scanline"></div>
             <span class="card-tag">[ ${item.category.toUpperCase()} ]</span>
             <h3 class="card-title">${item.title}</h3>
             <p class="card-text">${item.prompt}</p>
@@ -214,6 +223,93 @@
   }
 
   /* =========================================================
+       PAYWALL LOGIC
+    ========================================================= */
+  function applyPaywallLogic() {
+    if (isUnlocked) {
+      el.grid.classList.remove("locked");
+      if (el.paywall) el.paywall.style.display = "none";
+    } else {
+      el.grid.classList.add("locked");
+      if (el.paywall) el.paywall.style.display = "flex";
+    }
+  }
+
+  /* =========================================================
+       RAZORPAY INTEGRATION
+    ========================================================= */
+  if (el.buyBtn) {
+    el.buyBtn.addEventListener("click", async () => {
+      try {
+        el.buyBtn.textContent = "PROCESSING...";
+
+        // Check if key is added
+        if (RAZORPAY_KEY === "rzp_live_TxM8cvGEhK1785") {
+          alert(
+            "Bhai, script.js me apni Razorpay Live Key ID daalna bhool gaya!",
+          );
+          el.buyBtn.textContent = "UNLOCK NOW FOR ₹49";
+          return;
+        }
+
+        // 1. Backend se order banao
+        const res = await fetch("/api/create-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount: 49 }),
+        });
+        const orderData = await res.json();
+
+        if (orderData.error) {
+          alert("Error: " + orderData.error);
+          el.buyBtn.textContent = "UNLOCK NOW FOR ₹49";
+          return;
+        }
+
+        // 2. Checkout options
+        const options = {
+          key: RAZORPAY_KEY,
+          amount: orderData.amount,
+          currency: "INR",
+          name: "Prompt Vault 2.0",
+          description: "10,000+ Premium AI Prompts",
+          order_id: orderData.id,
+          handler: async function (response) {
+            // 3. Payment verify karo
+            const verifyRes = await fetch("/api/verify-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              }),
+            });
+            const verifyData = await verifyRes.json();
+
+            if (verifyData.status === "success") {
+              localStorage.setItem("vault_unlocked", "true");
+              isUnlocked = true;
+              applyPaywallLogic();
+              alert("Payment Successful! Vault Unlocked.");
+            } else {
+              alert("Payment Failed. Please try again.");
+              el.buyBtn.textContent = "UNLOCK NOW FOR ₹49";
+            }
+          },
+          theme: { color: "#00ff41" },
+        };
+        const rzp = new Razorpay(options);
+        rzp.open();
+      } catch (err) {
+        console.error(err);
+        alert("Something went wrong.");
+        el.buyBtn.textContent = "UNLOCK NOW FOR ₹49";
+      }
+    });
+  }
+
+  /* =========================================================
        EVENTS
     ========================================================= */
   el.categoryList.addEventListener("click", (e) => {
@@ -244,54 +340,41 @@
 
   el.loadMore.addEventListener("click", () => loadPrompts());
 
+  // Modal Events
   el.grid.addEventListener("click", (e) => {
     const card = e.target.closest(".card");
-    if (card) openModal(card.dataset.id, card);
-  });
-  el.grid.addEventListener("keydown", (e) => {
-    if (e.key !== "Enter" && e.key !== " ") return;
-    const card = e.target.closest(".card");
     if (card) {
-      e.preventDefault();
-      openModal(card.dataset.id, card);
+      if (!isUnlocked) {
+        el.paywall.scrollIntoView({ behavior: "smooth" });
+      } else {
+        openModal(card.dataset.id, card);
+      }
     }
   });
 
   /* =========================================================
-       MODAL WITH DECRYPT EFFECT
+       MODAL LOGIC
     ========================================================= */
   let lastFocused = null,
     copyResetTimer = null;
-
   function openModal(id, triggerEl) {
     const item = promptStore.get(String(id));
     if (!item) return;
     lastFocused = triggerEl || document.activeElement;
-
     el.modalCategory.textContent = `// ${item.category.toUpperCase()}`;
     el.modalTitle.textContent = item.title;
     el.modalMeta.textContent = `[ ${countWords(item.prompt)} WORDS ]`;
-
-    // Decryption Effect
-    el.modalBody.innerHTML = `<div class="decrypt-overlay">> DECRYPTING DATA...</div>`;
-    setTimeout(() => {
-      el.modalBody.textContent = item.prompt;
-      el.modalBody.scrollTop = 0;
-    }, 1500);
-
+    el.modalBody.textContent = item.prompt;
+    el.modalBody.scrollTop = 0;
     resetCopyButton();
     el.modal.classList.add("open");
-    el.modal.setAttribute("aria-hidden", "false");
     document.body.classList.add("modal-open");
-    el.modalClose.focus({ preventScroll: true });
   }
 
   function closeModal() {
     el.modal.classList.remove("open");
-    el.modal.setAttribute("aria-hidden", "true");
     document.body.classList.remove("modal-open");
-    if (lastFocused && typeof lastFocused.focus === "function")
-      lastFocused.focus({ preventScroll: true });
+    if (lastFocused) lastFocused.focus();
   }
 
   function resetCopyButton() {
@@ -300,34 +383,16 @@
     el.copyBtn.classList.remove("copied", "failed");
   }
 
-  async function copyToClipboard(text) {
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(text);
-        return true;
-      }
-    } catch (_) {}
-    try {
-      const ta = document.createElement("textarea");
-      ta.value = text;
-      ta.setAttribute("readonly", "");
-      ta.style.cssText = "position:fixed;top:-1000px;opacity:0;";
-      document.body.appendChild(ta);
-      ta.select();
-      const ok = document.execCommand("copy");
-      document.body.removeChild(ta);
-      return ok;
-    } catch (_) {
-      return false;
-    }
-  }
-
   el.copyBtn.addEventListener("click", async () => {
-    const ok = await copyToClipboard(el.modalBody.textContent);
-    resetCopyButton();
-    el.copyBtn.textContent = ok ? "[ COPIED \u2713 ]" : "[ COPY FAILED ]";
-    el.copyBtn.classList.add(ok ? "copied" : "failed");
-    copyResetTimer = setTimeout(resetCopyButton, 2000);
+    try {
+      await navigator.clipboard.writeText(el.modalBody.textContent);
+      el.copyBtn.textContent = "[ COPIED \u2713 ]";
+      el.copyBtn.classList.add("copied");
+      copyResetTimer = setTimeout(resetCopyButton, 2000);
+    } catch (_) {
+      el.copyBtn.textContent = "[ COPY FAILED ]";
+      el.copyBtn.classList.add("failed");
+    }
   });
 
   el.modalClose.addEventListener("click", closeModal);
@@ -339,7 +404,7 @@
   });
 
   /* =========================================================
-       MATRIX RAIN & SPOTLIGHT
+       MATRIX RAIN & SPOTLIGHT & CURSOR
     ========================================================= */
   function initMatrixRain() {
     const canvas = $("matrix-canvas");
@@ -381,187 +446,42 @@
         drops[i]++;
       }
     }
-    let resizeTimer;
-    window.addEventListener("resize", () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(resize, 150);
-    });
     resize();
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    window.addEventListener("resize", resize);
     requestAnimationFrame(draw);
   }
 
-  function initSpotlight() {
-    if (!el.spotlight) return;
-    window.addEventListener("mousemove", (e) => {
-      el.spotlight.style.left = e.clientX + "px";
-      el.spotlight.style.top = e.clientY + "px";
-    });
-  }
-
-  /* =========================================================
-       SMOOTH CUSTOM CURSOR
-    ========================================================= */
   function initCursor() {
-    const canFinePointer = window.matchMedia(
-      "(hover: hover) and (pointer: fine)",
-    ).matches;
-    if (!canFinePointer) return;
+    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches)
+      return;
     const dot = $("cursor-dot"),
       outline = $("cursor-outline");
     if (!dot || !outline) return;
     document.body.classList.add("has-custom-cursor");
-    let mouseX = window.innerWidth / 2,
-      mouseY = window.innerHeight / 2;
-    let dotX = mouseX,
-      dotY = mouseY,
-      outX = mouseX,
-      outY = mouseY;
-    const DOT_EASE = 0.55,
-      OUTLINE_EASE = 0.14;
+    let mouseX = 0,
+      mouseY = 0,
+      outX = 0,
+      outY = 0;
+
     window.addEventListener("mousemove", (e) => {
       mouseX = e.clientX;
       mouseY = e.clientY;
+      dot.style.transform = `translate3d(${mouseX}px, ${mouseY}px, 0)`;
       document.body.classList.add("cursor-visible");
     });
-    document.addEventListener("mouseleave", () =>
-      document.body.classList.remove("cursor-visible"),
-    );
-    document.addEventListener("mouseenter", () =>
-      document.body.classList.add("cursor-visible"),
-    );
-    window.addEventListener("mousedown", () =>
-      document.body.classList.add("cursor-down"),
-    );
-    window.addEventListener("mouseup", () =>
-      document.body.classList.remove("cursor-down"),
-    );
-    const INTERACTIVE =
-      'a, button, input, textarea, .card, .category-btn, [role="button"]';
-    document.addEventListener("mouseover", (e) => {
-      document.body.classList.toggle(
-        "cursor-hover",
-        !!e.target.closest(INTERACTIVE),
-      );
-    });
+
     function animate() {
-      dotX += (mouseX - dotX) * DOT_EASE;
-      dotY += (mouseY - dotY) * DOT_EASE;
-      outX += (mouseX - outX) * OUTLINE_EASE;
-      outY += (mouseY - outY) * OUTLINE_EASE;
-      dot.style.transform = `translate3d(${dotX}px, ${dotY}px, 0)`;
+      outX += (mouseX - outX) * 0.15;
+      outY += (mouseY - outY) * 0.15;
       outline.style.transform = `translate3d(${outX}px, ${outY}px, 0)`;
       requestAnimationFrame(animate);
     }
     requestAnimationFrame(animate);
   }
 
-  /* =========================================================
-       INIT
-    ========================================================= */
   document.addEventListener("DOMContentLoaded", () => {
     initMatrixRain();
     initCursor();
-    initSpotlight();
     loadPrompts({ reset: true });
   });
 })();
-// --- PAYWALL LOGIC ---
-let isUnlocked = false;
-const paywallOverlay = document.getElementById("paywall-overlay");
-const promptGrid = document.getElementById("prompt-grid");
-const buyBtn = document.getElementById("buy-btn");
-
-// Check if user already unlocked (stored in browser local storage)
-if (localStorage.getItem("vault_unlocked") === "true") {
-  isUnlocked = true;
-}
-
-function applyPaywall() {
-  if (!isUnlocked) {
-    promptGrid.classList.add("locked");
-    paywallOverlay.style.height = "auto";
-    paywallOverlay.style.marginTop = "-150px"; // Pull up to overlap the blur
-  } else {
-    promptGrid.classList.remove("locked");
-    paywallOverlay.style.display = "none";
-  }
-}
-
-// Call this after rendering prompts
-const originalRender = renderPrompts;
-renderPrompts = function (data) {
-  originalRender(data);
-  applyPaywall();
-};
-
-// --- RAZORPAY PAYMENT INTEGRATION ---
-buyBtn.addEventListener("click", async () => {
-  try {
-    buyBtn.innerText = "PROCESSING...";
-
-    // 1. Backend se order ID mangwao
-    const response = await fetch("/api/create-order", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: 49 }), // Price ₹49
-    });
-    const orderData = await response.json();
-
-    if (orderData.error) {
-      alert("Error: " + orderData.error);
-      buyBtn.innerText = "UNLOCK NOW FOR ₹49";
-      return;
-    }
-
-    // 2. Razorpay Popup
-    const options = {
-      key: "rzp_live_TxM8cvGEhK1785", // YAHAN APNI LIVE KEY ID DAAL
-      amount: orderData.amount,
-      currency: "INR",
-      name: "Prompt Vault 2.0",
-      description: "10,000+ Premium AI Prompts",
-      order_id: orderData.id,
-      handler: async function (response) {
-        // 3. Payment Verify
-        const verifyRes = await fetch("/api/verify-payment", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-          }),
-        });
-
-        const verifyData = await verifyRes.json();
-
-        if (verifyData.status === "success") {
-          // Unlock the vault!
-          localStorage.setItem("vault_unlocked", "true");
-          isUnlocked = true;
-          applyPaywall();
-          alert("Payment Successful! Vault Unlocked.");
-        } else {
-          alert("Payment Verification Failed. Contact Support.");
-          buyBtn.innerText = "UNLOCK NOW FOR ₹49";
-        }
-      },
-      theme: { color: "#00ff41" },
-    };
-
-    const rzp = new Razorpay(options);
-    rzp.on("payment.failed", function (response) {
-      alert("Payment Failed: " + response.error.description);
-      buyBtn.innerText = "UNLOCK NOW FOR ₹49";
-    });
-    rzp.open();
-  } catch (error) {
-    console.error(error);
-    alert("Something went wrong.");
-    buyBtn.innerText = "UNLOCK NOW FOR ₹49";
-  }
-});
-
-// Trigger on load
-applyPaywall();
