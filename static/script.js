@@ -7,8 +7,8 @@
   const PAGE_LIMIT = 20;
   const SEARCH_DEBOUNCE_MS = 500;
 
-  // 🚨 BHAI YAHAN APNI LIVE KEY ID DAALNA
-  const RAZORPAY_KEY = "rzp_live_TxgQpMstY47Wbr"; 
+  // 🚨 YAHAN TERI NAYI KEY ID HAI
+  const RAZORPAY_KEY = "rzp_live_TxgQpMstY47Wbr";
 
   const state = {
     page: 0,
@@ -128,7 +128,6 @@
           '<span class="big">// NO_DATA_FOUND</span>Try a different keyword.',
         );
 
-      // Apply Paywall Logic after loading prompts
       applyPaywallLogic();
     } catch (err) {
       if (err.name === "AbortError") return;
@@ -236,80 +235,77 @@
   }
 
   /* =========================================================
-       RAZORPAY INTEGRATION & FIXED PAYMENT FLOW
+       RAZORPAY INTEGRATION
     ========================================================= */
   if (el.buyBtn) {
-    el.buyBtn.addEventListener('click', async () => {
-        try {
-            el.buyBtn.textContent = "PROCESSING...";
-            
-            // 1. Backend se order banao
-            const res = await fetch('/api/create-order', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount: 49 })
-            });
+    el.buyBtn.addEventListener("click", async () => {
+      try {
+        el.buyBtn.textContent = "PROCESSING...";
 
-            // Agar backend se error aata hai, toh ASLI ERROR dikhao
-            if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.error || "Server failed to create order");
-            }
+        // 1. Backend se order banao
+        const res = await fetch("/api/create-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount: 49 }),
+        });
 
-            const orderData = await res.json();
-
-            // 2. Razorpay Popup
-            const options = {
-                key: RAZORPAY_KEY, 
-                amount: orderData.amount,
-                currency: "INR",
-                name: "Prompt Vault 2.0",
-                description: "10,000+ Premium AI Prompts",
-                order_id: orderData.id,
-                handler: async function (response) {
-                    try {
-                        // 3. Payment Verify karo (Ye code missing tha!)
-                        const verifyRes = await fetch('/api/verify-payment', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                razorpay_order_id: response.razorpay_order_id,
-                                razorpay_payment_id: response.razorpay_payment_id,
-                                razorpay_signature: response.razorpay_signature
-                            })
-                        });
-
-                        const verifyData = await verifyRes.json();
-
-                        if (verifyData.status === 'success') {
-                            // Unlock the vault!
-                            localStorage.setItem('vault_unlocked', 'true');
-                            isUnlocked = true;
-                            applyPaywallLogic();
-                            alert("Payment Successful! Vault Unlocked.");
-                        } else {
-                            alert("Payment Verification Failed. Contact support.");
-                        }
-                    } catch (verifyErr) {
-                        console.error("Verification Error:", verifyErr);
-                        alert("Payment verification failed. Please contact support.");
-                    }
-                },
-                theme: { color: "#00ff41" }
-            };
-            const rzp = new Razorpay(options);
-            rzp.on('payment.failed', function (response){
-                console.error("Payment Failed:", response.error);
-                alert("Payment Failed: " + response.error.description);
-                el.buyBtn.textContent = "UNLOCK NOW FOR ₹49";
-            });
-            rzp.open();
-        } catch (err) {
-            console.error("Exact Error:", err);
-            // Ab alert me asli error dikhega
-            alert("ASLI ERROR: " + err.message); 
-            el.buyBtn.textContent = "UNLOCK NOW FOR ₹49";
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || "Server failed to create order");
         }
+
+        const orderData = await res.json();
+
+        // 2. Razorpay Popup
+        const options = {
+          key: RAZORPAY_KEY,
+          amount: orderData.amount,
+          currency: "INR",
+          name: "Prompt Vault 2.0",
+          description: "10,000+ Premium AI Prompts",
+          order_id: orderData.id,
+          handler: async function (response) {
+            try {
+              // 3. Payment Verify karo
+              const verifyRes = await fetch("/api/verify-payment", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                }),
+              });
+
+              const verifyData = await verifyRes.json();
+
+              if (verifyData.status === "success") {
+                localStorage.setItem("vault_unlocked", "true");
+                isUnlocked = true;
+                applyPaywallLogic();
+                alert("Payment Successful! Vault Unlocked.");
+              } else {
+                alert("Payment Verification Failed. Contact support.");
+              }
+            } catch (verifyErr) {
+              console.error("Verification Error:", verifyErr);
+              alert("Payment verification failed. Please contact support.");
+            }
+          },
+          theme: { color: "#00ff41" },
+        };
+        const rzp = new Razorpay(options);
+        rzp.on("payment.failed", function (response) {
+          console.error("Payment Failed:", response.error);
+          alert("Payment Failed: " + response.error.description);
+          el.buyBtn.textContent = "UNLOCK NOW FOR ₹49";
+        });
+        rzp.open();
+      } catch (err) {
+        console.error("Exact Error:", err);
+        alert("ASLI ERROR: " + err.message);
+        el.buyBtn.textContent = "UNLOCK NOW FOR ₹49";
+      }
     });
   }
 
@@ -344,7 +340,6 @@
 
   el.loadMore.addEventListener("click", () => loadPrompts());
 
-  // Modal Events
   el.grid.addEventListener("click", (e) => {
     const card = e.target.closest(".card");
     if (card) {
@@ -359,7 +354,8 @@
   /* =========================================================
        MODAL LOGIC
     ========================================================= */
-  let lastFocused = null, copyResetTimer = null;
+  let lastFocused = null,
+    copyResetTimer = null;
   function openModal(id, triggerEl) {
     const item = promptStore.get(String(id));
     if (!item) return;
@@ -414,15 +410,21 @@
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const FONT_SIZE = 16, FRAME_MS = 45;
-    const CHARS = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEF<>{}[]/\\=+*";
-    let columns = 0, drops = [], lastFrame = 0;
+    const FONT_SIZE = 16,
+      FRAME_MS = 45;
+    const CHARS =
+      "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEF<>{}[]/\\=+*";
+    let columns = 0,
+      drops = [],
+      lastFrame = 0;
 
     function resize() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       columns = Math.ceil(canvas.width / FONT_SIZE);
-      drops = Array.from({ length: columns }, () => Math.floor(Math.random() * -60));
+      drops = Array.from({ length: columns }, () =>
+        Math.floor(Math.random() * -60),
+      );
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
@@ -449,14 +451,20 @@
   }
 
   function initCursor() {
-    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
-    const dot = $("cursor-dot"), outline = $("cursor-outline");
+    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches)
+      return;
+    const dot = $("cursor-dot"),
+      outline = $("cursor-outline");
     if (!dot || !outline) return;
     document.body.classList.add("has-custom-cursor");
-    let mouseX = 0, mouseY = 0, outX = 0, outY = 0;
+    let mouseX = 0,
+      mouseY = 0,
+      outX = 0,
+      outY = 0;
 
     window.addEventListener("mousemove", (e) => {
-      mouseX = e.clientX; mouseY = e.clientY;
+      mouseX = e.clientX;
+      mouseY = e.clientY;
       dot.style.transform = `translate3d(${mouseX}px, ${mouseY}px, 0)`;
       document.body.classList.add("cursor-visible");
     });
