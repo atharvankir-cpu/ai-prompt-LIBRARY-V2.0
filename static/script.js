@@ -8,7 +8,7 @@
   const SEARCH_DEBOUNCE_MS = 500;
 
   // 🚨 BHAI YAHAN APNI LIVE KEY ID DAALNA
-  const RAZORPAY_KEY = "rzp_live_TxM8cvGEhK1785"; 
+  const RAZORPAY_KEY = "rzp_live_TxgQpMstY47Wbr"; 
 
   const state = {
     page: 0,
