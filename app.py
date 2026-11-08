@@ -1,10 +1,12 @@
 """
-app.py - Flask backend for AI Vault 2.0
-Run:  python app.py   ->   http://127.0.0.1:5000
+app.py - Flask backend for AI Vault 2.0 with Razorpay Integration
 """
 import math
 import os
 import sqlite3
+import razorpay
+import hmac
+import hashlib
 
 from flask import Flask, jsonify, render_template, request
 
@@ -16,15 +18,24 @@ MAX_LIMIT = 100
 
 app = Flask(__name__)
 
+# --- RAZORPAY SETUP (Vercel Environment Variables se aayengi) ---
+RAZORPAY_KEY_ID = os.environ.get("rzp_live_TxM8cvGEhK1785")
+RAZORPAY_KEY_SECRET = os.environ.get("rzp_live_TxM8cvGEhK1785,W5G6JWYHmAEDmf2RyfqBrlb1")
+
+# Client initialize karo (agar keys nahi hain toh error handle karega)
+client = None
+if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
+    client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH, timeout=10)
+    # Vercel read-only filesystem ke liye mode=ro zaroori hai
+    conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
     return conn
 
 
 def to_int(value, default, minimum=1, maximum=None):
-    """Safely parse an int from query params and clamp it into a valid range."""
     try:
         number = int(value)
     except (TypeError, ValueError):
@@ -36,7 +47,6 @@ def to_int(value, default, minimum=1, maximum=None):
 
 
 def escape_like(text):
-    """Escape LIKE wildcards so user input like '50%' is searched literally."""
     return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
@@ -48,7 +58,7 @@ def index():
 @app.route("/api/prompts", methods=["GET"])
 def api_prompts():
     if not os.path.exists(DB_PATH):
-        return jsonify(error="Database not found. Run 'python setup_db.py' first."), 500
+        return jsonify(error="Database not found."), 500
 
     page = to_int(request.args.get("page"), 1)
     limit = to_int(request.args.get("limit"), DEFAULT_LIMIT, maximum=MAX_LIMIT)
@@ -73,31 +83,15 @@ def api_prompts():
     try:
         conn = get_db()
         try:
-            total = conn.execute(
-                f"SELECT COUNT(*) FROM prompts {where_sql}", params
-            ).fetchone()[0]
-
+            total = conn.execute(f"SELECT COUNT(*) FROM prompts {where_sql}", params).fetchone()[0]
             rows = conn.execute(
-                f"""
-                SELECT id, category, title, prompt
-                FROM prompts
-                {where_sql}
-                ORDER BY id ASC
-                LIMIT ? OFFSET ?
-                """,
+                f"SELECT id, category, title, prompt FROM prompts {where_sql} ORDER BY id ASC LIMIT ? OFFSET ?",
                 params + [limit, offset],
             ).fetchall()
-
-            categories = [
-                r["category"]
-                for r in conn.execute(
-                    "SELECT DISTINCT category FROM prompts ORDER BY category COLLATE NOCASE"
-                ).fetchall()
-            ]
+            categories = [r["category"] for r in conn.execute("SELECT DISTINCT category FROM prompts ORDER BY category COLLATE NOCASE").fetchall()]
         finally:
             conn.close()
     except sqlite3.Error as exc:
-        app.logger.exception("Database error")
         return jsonify(error=f"Database error: {exc}"), 500
 
     return jsonify(
@@ -107,6 +101,61 @@ def api_prompts():
         categories=categories,
         page=page,
     )
+
+
+# --- RAZORPAY ROUTES (Naya Add Kiya Hai) ---
+
+@app.route("/api/create-order", methods=["POST"])
+def create_order():
+    if not client:
+        return jsonify(error="Razorpay keys missing in environment variables"), 500
+
+    try:
+        data = request.json
+        amount = int(data.get('amount', 49)) * 100 # ₹49 ko paise me convert kiya
+        
+        order_data = {
+            'amount': amount,
+            'currency': 'INR',
+            'receipt': f'receipt_{os.urandom(4).hex()}',
+            'payment_capture': 1 
+        }
+        order = client.order.create(data=order_data)
+        
+        return jsonify({
+            "id": order['id'],
+            "amount": order['amount'],
+            "currency": order['currency']
+        })
+    except Exception as e:
+        return jsonify(error=str(e)), 500
+
+
+@app.route("/api/verify-payment", methods=["POST"])
+def verify_payment():
+    if not client:
+        return jsonify(error="Razorpay keys missing"), 500
+
+    try:
+        data = request.json
+        order_id = data.get('razorpay_order_id')
+        payment_id = data.get('razorpay_payment_id')
+        signature = data.get('razorpay_signature')
+
+        # Signature verify karna
+        generated_signature = hmac.new(
+            bytes(RAZORPAY_KEY_SECRET, 'utf-8'),
+            bytes(order_id + "|" + payment_id, 'utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+
+        if generated_signature == signature:
+            # Payment Successful!
+            return jsonify({"status": "success", "message": "Payment verified!"})
+        else:
+            return jsonify({"status": "failure", "message": "Invalid signature"}), 400
+    except Exception as e:
+        return jsonify(error=str(e)), 500
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@
   const SEARCH_DEBOUNCE_MS = 500;
 
   // 🚨 BHAI YAHAN APNI LIVE KEY ID DAALNA
-  const RAZORPAY_KEY = "YOUR_RAZORPAY_KEY_ID";
+  const RAZORPAY_KEY = "rzp_live_TxM8cvGEhK1785";
 
   const state = {
     page: 0,
@@ -239,74 +239,44 @@
        RAZORPAY INTEGRATION
     ========================================================= */
   if (el.buyBtn) {
-    el.buyBtn.addEventListener("click", async () => {
-      try {
+   el.buyBtn.addEventListener('click', async () => {
+    try {
         el.buyBtn.textContent = "PROCESSING...";
+        
+        // 1. Backend se order banao
+        const res = await fetch('/api/create-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount: 49 })
+        });
 
-        // Check if key is added
-        if (RAZORPAY_KEY === "rzp_live_TxM8cvGEhK1785") {
-          alert(
-            "Bhai, script.js me apni Razorpay Live Key ID daalna bhool gaya!",
-          );
-          el.buyBtn.textContent = "UNLOCK NOW FOR ₹49";
-          return;
+        if(!res.ok) {
+            throw new Error("Server failed to create order");
         }
 
-        // 1. Backend se order banao
-        const res = await fetch("/api/create-order", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount: 49 }),
-        });
         const orderData = await res.json();
 
-        if (orderData.error) {
-          alert("Error: " + orderData.error);
-          el.buyBtn.textContent = "UNLOCK NOW FOR ₹49";
-          return;
-        }
-
-        // 2. Checkout options
+        // 2. Razorpay Popup
         const options = {
-          key: RAZORPAY_KEY,
-          amount: orderData.amount,
-          currency: "INR",
-          name: "Prompt Vault 2.0",
-          description: "10,000+ Premium AI Prompts",
-          order_id: orderData.id,
-          handler: async function (response) {
-            // 3. Payment verify karo
-            const verifyRes = await fetch("/api/verify-payment", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-              }),
-            });
-            const verifyData = await verifyRes.json();
-
-            if (verifyData.status === "success") {
-              localStorage.setItem("vault_unlocked", "true");
-              isUnlocked = true;
-              applyPaywallLogic();
-              alert("Payment Successful! Vault Unlocked.");
-            } else {
-              alert("Payment Failed. Please try again.");
-              el.buyBtn.textContent = "UNLOCK NOW FOR ₹49";
-            }
-          },
-          theme: { color: "#00ff41" },
+            key: RAZORPAY_KEY, // Ye upar define kiya hua hai
+            amount: orderData.amount,
+            currency: "INR",
+            name: "Prompt Vault 2.0",
+            description: "10,000+ Premium AI Prompts",
+            order_id: orderData.id,
+            handler: async function (response) {
+                // ... tera verify payment wala code ...
+            },
+            theme: { color: "#00ff41" }
         };
         const rzp = new Razorpay(options);
         rzp.open();
-      } catch (err) {
+    } catch (err) {
         console.error(err);
-        alert("Something went wrong.");
+        alert("Backend error. Check Vercel logs.");
         el.buyBtn.textContent = "UNLOCK NOW FOR ₹49";
-      }
-    });
+    }
+});
   }
 
   /* =========================================================
