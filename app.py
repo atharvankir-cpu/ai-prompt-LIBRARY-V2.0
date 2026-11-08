@@ -19,8 +19,9 @@ MAX_LIMIT = 100
 app = Flask(__name__)
 
 # --- RAZORPAY SETUP (Vercel Environment Variables se aayengi) ---
-RAZORPAY_KEY_ID = os.environ.get("rzp_live_TxM8cvGEhK1785")
-RAZORPAY_KEY_SECRET = os.environ.get("rzp_live_TxM8cvGEhK1785,W5G6JWYHmAEDmf2RyfqBrlb1")
+# Yahan keys ki value nahi, balki Vercel wale variable ka naam aayega
+RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID")
+RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET")
 
 # Client initialize karo (agar keys nahi hain toh error handle karega)
 client = None
@@ -103,12 +104,12 @@ def api_prompts():
     )
 
 
-# --- RAZORPAY ROUTES (Naya Add Kiya Hai) ---
+# --- RAZORPAY ROUTES ---
 
 @app.route("/api/create-order", methods=["POST"])
 def create_order():
     if not client:
-        return jsonify(error="Razorpay keys missing in environment variables"), 500
+        return jsonify(error="Razorpay keys missing in Vercel environment variables"), 500
 
     try:
         data = request.json
@@ -150,7 +151,6 @@ def verify_payment():
         ).hexdigest()
 
         if generated_signature == signature:
-            # Payment Successful!
             return jsonify({"status": "success", "message": "Payment verified!"})
         else:
             return jsonify({"status": "failure", "message": "Invalid signature"}), 400
