@@ -323,3 +323,88 @@ body.cursor-hover .cursor-outline { width: 55px; height: 55px; margin: -27.5px 0
     color: var(--muted) !important;
     margin-top: 15px;
 }
+/* =========================================
+   MOBILE OPTIMIZATION (US Audience ke liye)
+   ========================================= */
+@media screen and (max-width: 768px) {
+    
+    /* 1. App Layout (Sidebar aur Main ko upar-niche karo) */
+    .app {
+        flex-direction: column !important;
+    }
+
+    /* 2. Sidebar (Mobile pe horizontal scrollable banao) */
+    .sidebar {
+        width: 100% !important;
+        height: auto !important;
+        border-right: none !important;
+        border-bottom: 1px solid #00ff41; /* Neon Green */
+        padding: 10px !important;
+        overflow-y: hidden !important;
+        overflow-x: auto !important; /* Left-right scroll */
+        white-space: nowrap;
+    }
+
+    .sidebar-brand {
+        display: none !important; /* Mobile pe bada logo chhupa do space bachane ke liye */
+    }
+
+    .category-list {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 10px;
+        padding-bottom: 5px;
+    }
+
+    .category-btn {
+        font-size: 0.8rem !important;
+        padding: 8px 12px !important;
+    }
+
+    /* 3. Main Content Padding */
+    .main {
+        padding: 15px !important;
+    }
+
+    /* 4. Grid (Cards ko ek line me ek dikhao) */
+    .grid {
+        grid-template-columns: 1fr !important; /* Single column */
+        gap: 15px !important;
+    }
+
+    /* 5. HUD Corners (Mobile pe screen clean rakhne ke liye chhupa do) */
+    .hud {
+        display: none !important;
+    }
+
+    /* 6. Search Input (iOS auto-zoom rokne ke liye font size 16px) */
+    #search-input {
+        font-size: 16px !important;
+    }
+
+    /* 7. Paywall Box (Unlock Button wala box) */
+    .paywall-box {
+        width: 90% !important;
+        padding: 20px !important;
+        margin: 0 auto;
+    }
+
+    .unlock-btn {
+        font-size: 1rem !important;
+        padding: 12px !important;
+        width: 100%;
+    }
+
+    /* 8. Modal (Jab prompt khule toh screen pe fit aaye) */
+    .modal-content {
+        width: 95% !important;
+        max-height: 85vh !important;
+        margin: 5vh auto !important;
+        padding: 15px !important;
+    }
+
+    /* 9. Custom Cursor Band Karo (Mobile pe touch screen hoti hai) */
+    .cursor-dot, .cursor-outline {
+        display: none !important;
+    }
+}
